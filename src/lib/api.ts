@@ -1,8 +1,9 @@
-
+// Automatically uses the production URL from Vercel/Render, or defaults to local
 export const API = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000") + "/api";
 
-
-/* Standard GET request helper */
+/**
+ * Standard GET request helper
+ */
 export async function get(path: string) {
   try {
     const res = await fetch(`${API}${path}`, {
