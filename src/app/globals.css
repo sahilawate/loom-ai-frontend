@@ -1,0 +1,316 @@
+:root {
+  --navy: #0b1d2d;
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --text: #0f172a;
+  --muted: #64748b;
+  --green: #16a34a;
+  --blue: #2563eb;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ---------- NAVBAR ---------- */
+
+.navbar {
+  height: 56px;
+  background: var(--navy);
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  justify-content: space-between;
+}
+
+.nav-left {
+  font-weight: 600;
+}
+
+.nav-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.badge {
+  background: #0f766e;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+/* ---------- CONTAINERS ---------- */
+
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.surface {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 24px;
+}
+
+/* ---------- APP LAUNCHER ---------- */
+
+.launcher-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.launcher-header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.launcher-header p {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.launcher-grid-3,
+.launcher-grid-2 {
+  display: grid;
+  gap: 24px;
+}
+
+.launcher-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+  margin-bottom: 28px;
+}
+
+.launcher-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.launch-card {
+  text-decoration: none;
+  color: inherit;
+  background: white;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 24px;
+  text-align: center;
+}
+
+.launch-card .icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.launch-card h3 {
+  margin: 6px 0;
+}
+
+.launch-card p {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ---------- MOBILE APP ---------- */
+
+.mobile-layout {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr; /* chat bigger */
+  gap: 20px;
+}
+
+.chat,
+.products,
+.timeline {
+  background: white;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+
+.chat-header {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.chat-bubble {
+  background: #f1f5f9;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.product-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.product-card button {
+  margin-top: 8px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 10px;
+  border: none;
+  background: var(--navy);
+  color: white;
+}
+
+/* ---------- STAFF / CHECKOUT ---------- */
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ---------- AGENT TIMELINE ---------- */
+
+.agent {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.agent-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--blue);
+  margin-top: 6px;
+}
+
+.agent p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* ---------- CHAT UX IMPROVEMENTS ---------- */
+
+.chat {
+  height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  line-height: 1.4;
+}
+
+.chat-bubble.user {
+  align-self: flex-end;
+  background: #e0f2fe;
+}
+
+.chat-bubble.ai {
+  align-self: flex-start;
+  background: #f1f5f9;
+}
+
+.chat-input {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.chat-input input {
+  flex: 1;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.chat-input button {
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--navy);
+  color: white;
+  cursor: pointer;
+}
+
+/* ---------- PRODUCT CARD REFINEMENT ---------- */
+
+.products {
+  height: 560px;
+  overflow-y: auto;
+}
+
+.products h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.product-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.product-card img {
+  width: 68px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.product-card .info h4 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.product-card .info p {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.product-card button {
+  margin-top: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+/************************/
+
+.timeline {
+  height: 520px;
+  overflow-y: auto;
+}
