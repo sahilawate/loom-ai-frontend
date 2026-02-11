@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
 import { post, API } from "../../lib/api"; 
@@ -8,279 +8,265 @@ import { getSession } from "../../lib/session";
 
 type Msg = { role: "user" | "ai"; text: string };
 
+// 🟢 PRODUCT CARD (Fixed Spacing & Logic)
+function ProductCard({ p, onAddToCart, onBuyNow, isAdded }: { p: any, onAddToCart: any, onBuyNow: any, isAdded: boolean }) {
+  const [qty, setQty] = useState(1);
+
+  // 1. Clean Parsing for Name & Stock
+  let cleanName = p.name;
+  let stock = 0;
+  if (p.name.includes("(In Stock:")) {
+      const parts = p.name.split("(In Stock:");
+      cleanName = parts[0].trim();
+      stock = parseInt(parts[1].replace(")", "").trim()) || 0;
+  } else {
+      cleanName = p.name; 
+      stock = p.quantity !== undefined ? p.quantity : 10; 
+  }
+
+  const inc = () => setQty(q => (stock > 0 && q < stock) ? q + 1 : q);
+  const dec = () => setQty(q => q > 1 ? q - 1 : 1);
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      backgroundColor: 'white', 
+      borderRadius: '12px', 
+      padding: '16px', 
+      gap: '16px', 
+      boxShadow: '0 4px 12px rgba(0,0,0,0.08)', 
+      border: '1px solid #e2e8f0', 
+      marginBottom: '16px',
+      height: '200px' 
+    }}>
+      
+      {/* LEFT: IMAGE CONTAINER */}
+      <div style={{ width: '130px', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{
+              width: '100%', height: '82%', flexShrink: 0,
+              backgroundColor: '#f8fafc', borderRadius: '8px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+              <img 
+                  src={p.image_url || 'https://via.placeholder.com/130?text=Loom'} 
+                  alt={cleanName} 
+                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }} 
+              />
+          </div>
+      </div>
+
+      {/* RIGHT: DETAILS COLUMN */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        
+        {/* ROW 1: Name (Style Preserved) */}
+        <h4 style={{ margin: '0', fontSize: '19px', fontWeight: '800', color: '#0f172a', lineHeight: '1.2', textAlign: 'left' }}>
+          {cleanName}
+        </h4>
+
+        {/* ROW 2: Size & Stock (Adjusted Middle Space) */}
+        <div style={{ display: 'flex', alignItems: 'center', marginLeft: '8px', gap: '30px', fontSize: '13px', fontWeight: '600', color: '#64748b' }}>
+           <span style={{ backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>Size: {p.size}</span>
+           <span style={{ color: stock < 5 ? '#dc2626' : '#15803d' }}>In Stock: {stock}</span>
+        </div>
+
+        {/* ROW 3: Qty & Price (Adjusted Middle Space) */}
+        <div style={{ display: 'flex', alignItems: 'center', marginLeft: '8px', gap: '35px' }}>
+            {/* Qty Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #cbd5e1', borderRadius: '6px', height: '28px' }}>
+                <button onClick={dec} style={{ width: '26px', border: 'none', background: 'transparent', fontWeight: 'bold', color: '#334155', cursor: 'pointer' }}>-</button>
+                <span style={{ minWidth: '18px', textAlign: 'center', fontSize: '13px', fontWeight: '700' }}>{qty}</span>
+                <button onClick={inc} style={{ width: '26px', border: 'none', background: 'transparent', fontWeight: 'bold', color: '#334155', cursor: 'pointer' }}>+</button>
+            </div>
+            
+            {/* Price (Large Bold) */}
+            <div style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>₹{p.price}</div>
+        </div>
+
+        {/* ROW 4: Action Buttons */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+                onClick={() => onAddToCart(p.variant_id, qty)}
+                disabled={stock === 0}
+                style={{ 
+                    flex: 1.2, height: '38px', fontSize: '11px', fontWeight: '700', borderRadius: '20px', border: 'none',
+                    backgroundColor: isAdded ? '#16a34a' : '#0f172a', color: 'white', cursor: stock === 0 ? 'not-allowed' : 'pointer', opacity: stock === 0 ? 0.6 : 1
+                }}
+            >
+               {isAdded ? "✔ Added" : "Add to Cart"}
+            </button>
+
+            <button
+                onClick={() => onBuyNow(p.variant_id, qty)}
+                disabled={stock === 0}
+                style={{
+                    flex: 1, height: '38px', fontSize: '11px', fontWeight: '700', borderRadius: '20px', border: 'none',
+                    backgroundColor: '#2563eb', color: 'white', cursor: stock === 0 ? 'not-allowed' : 'pointer', opacity: stock === 0 ? 0.6 : 1
+                }}
+            >
+              Buy Now
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MobilePage() {
   const router = useRouter();
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  
-  // 🟢 State for "Added to Cart" Pop-up
   const [toast, setToast] = useState<string | null>(null);
+  const [addedItems, setAddedItems] = useState<Set<number>>(new Set());
 
-  // 1. Load Session & SMART History
   useEffect(() => {
     getSession("mobile").then(async (sid) => {
       setSessionId(sid);
-
       try {
         const res = await fetch(`${API}/chat/history?sessionId=${sid}`);
-        
         if (res.ok) {
           const history = await res.json();
-          
           if (Array.isArray(history)) {
-             // Preservation of history reverse logic
              const lastOrder = [...history].reverse().find((m: any) => m.text && m.text.includes("Order #"));
-
              if (lastOrder) {
                setMessages([lastOrder]);
                return;
              }
           }
         }
-      } catch (e) {
-        console.error("History load error", e);
-      }
-
-      setMessages([
-        {
-          role: "ai",
-          text: "Hi 👋 I’m Loom AI. I can help you shop for shirts, t-shirts, jeans, blazers and dresses."
-        }
-      ]);
-
+      } catch (e) { console.error(e); }
+      setMessages([{ role: "ai", text: "Hi 👋 I’m Loom AI. I can help you shop for shirts, t-shirts, jeans, blazers and dresses." }]);
       setProducts([]);
     });
   }, []);
 
-  // 2. Send Message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
   async function sendMessage() {
     if (!input.trim() || !sessionId) return;
-
     const userMsg = input.trim();
     setInput("");
     setLoading(true);
-
     setMessages((m) => [...m, { role: "user", text: userMsg }]);
     setProducts([]); 
 
     try {
-      const res = await post("/chat/message", {
-        sessionId,
-        message: userMsg
-      });
-
+      const res = await post("/chat/message", { sessionId, message: userMsg });
       setMessages((m) => [...m, { role: "ai", text: res.reply }]);
       setProducts(res.products ?? []);
     } catch (error) {
-      console.error("Chat Error:", error);
-      setMessages((m) => [...m, { role: "ai", text: "I'm having trouble connecting. Please try again." }]);
+      setMessages((m) => [...m, { role: "ai", text: "I'm having trouble connecting." }]);
     } finally {
       setLoading(false);
     }
   }
 
-  // 🟢 ADD TO CART Logic
-  async function addToCart(variantId: number) {
+  // 3. Smart Add Handler
+  async function handleAddToCart(variantId: number, quantity: number) {
     if (!sessionId) return;
-    try {
-        await post("/cart/add", {
-            sessionId,
-            variantId
-        });
-        
-        setToast("✅ Added to cart!");
-        setTimeout(() => setToast(null), 3000); 
 
+    // If already added, navigate to checkout (Requested Validation)
+    if (addedItems.has(variantId)) {
+        router.push("/checkout");
+        return;
+    }
+
+    try {
+        await post("/cart/add", { sessionId, variantId, quantity });
+        setAddedItems(prev => new Set(prev).add(variantId));
+        setToast(`✅ Added ${quantity} item(s)!`);
+        setTimeout(() => setToast(null), 2500); 
     } catch(e) {
         setToast("❌ Failed to add");
-        setTimeout(() => setToast(null), 3000);
     }
   }
 
-  // "Buy Now" Logic
-  async function buyNow(variantId: number) {
+  // 4. Smart Buy Now Handler (The Validation You Asked For)
+  async function handleBuyNow(variantId: number, quantity: number) {
     if (!sessionId) return;
 
+    //  VALIDATION 1: If already in cart, just go to checkout.
+    // This prevents adding "Extra" items and violating stock limits.
+    if (addedItems.has(variantId)) {
+        router.push("/checkout");
+        return;
+    }
+
+    //  VALIDATION 2: If not in cart, add the selected qty THEN go to checkout.
     try {
-      await post("/cart/add", { sessionId, variantId, quantity: 1 });
+      await post("/cart/add", { sessionId, variantId, quantity });
       router.push("/checkout");
     } catch (error) {
       console.error("Buy Now Failed", error);
-      alert("Could not process request. Please try again.");
+      alert("Error processing request.");
     }
   }
 
   return (
     <>
       <Navbar mode="mobile" showBack />
-
       <div className="page mobile-layout" style={{ display: 'flex', height: 'calc(100vh - 60px)', overflow: 'hidden' }}>
-        {/* 🟢 CHAT PANEL (Increased flex to 1.3 for wider area) */}
+        
         <div className="chat" style={{ flex: '1.3', display: 'flex', flexDirection: 'column', borderRight: '1px solid #e2e8f0', backgroundColor: 'white' }}>
           <div className="chat-header" style={{ padding: '15px', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>Loom AI Assistant</div>
-
-          {/* 🟢 WHATSAPP STYLE MESSAGES AREA */}
           <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {messages.map((m, i) => (
-              <div
-                key={i}
-                style={{
+              <div key={i} style={{
                   alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-                  maxWidth: "85%", // Slightly wider
-                  padding: "12px 16px", // More padding
+                  maxWidth: "85%",
+                  padding: "12px 16px",
                   borderRadius: m.role === "user" ? "18px 18px 2px 18px" : "18px 18px 18px 2px",
                   backgroundColor: m.role === "user" ? "#0f172a" : "#f1f5f9",
                   color: m.role === "user" ? "white" : "#1e293b",
-                  fontSize: "15px", // 🟢 Increased by 1 (was 14px)
+                  fontSize: "15px",
                   lineHeight: "1.4",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
-                }}
-              >
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.1)",
+                  whiteSpace: "pre-wrap"
+                }}>
                 {m.text}
               </div>
             ))}
-            {loading && (
-              <div style={{ alignSelf: "flex-start", padding: "12px 16px", borderRadius: "18px", backgroundColor: "#f1f5f9", color: "#64748b", fontSize: "15px" }}>
-                Thinking…
-              </div>
-            )}
+            {loading && <div style={{ alignSelf: "flex-start", padding: "10px 16px", borderRadius: "18px", backgroundColor: "#f1f5f9", color: "#64748b", fontSize: "14px" }}>Thinking…</div>}
+            <div ref={chatEndRef} />
           </div>
-
           <div className="chat-input" style={{ padding: '15px', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '8px' }}>
-            <input
-              style={{ flex: 1, padding: '12px', borderRadius: '25px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '15px' }}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            <input style={{ flex: 1, padding: '12px', borderRadius: '25px', border: '1px solid #cbd5e1', outline: 'none', fontSize: '15px' }}
+              value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type here..." onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             />
-            <button 
-              onClick={sendMessage}
-              style={{ backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            >
-              ➔
-            </button>
+            <button onClick={sendMessage} style={{ backgroundColor: '#0f172a', color: 'white', border: 'none', borderRadius: '50%', width: '45px', height: '45px', cursor: 'pointer' }}>➔</button>
           </div>
         </div>
 
-        {/* 🟢 RECOMMENDATIONS PANEL (Increased flex to 1.6) */}
-        <div className="products" style={{ flex: '1.6', backgroundColor: '#f1f5f9', padding: '20px', overflowY: 'auto' }}>
-          <h4 style={{ marginBottom: '15px', color: '#1e293b', fontWeight: '700' }}>Recommended</h4>
-
-          {products.length === 0 && (
-            <p style={{ fontSize: 13, color: "#64748b" }}>
-              Products will appear here based on your chat
-            </p>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <div className="products" style={{ flex: '1.6', backgroundColor: '#f8fafc', padding: '20px', overflowY: 'auto' }}>
+          <h4 style={{ marginBottom: '20px', color: '#1e293b', fontWeight: '800', fontSize: '18px' }}>Recommended</h4>
+          {products.length === 0 && <p style={{ fontSize: 13, color: "#64748b" }}>Suggestions will appear here...</p>}
+          
+          <div>
             {products.map((p) => (
-              <div key={p.variant_id} className="product-card" style={{ 
-                display: 'flex', 
-                backgroundColor: 'white', 
-                borderRadius: '12px', 
-                padding: '16px', // Slightly larger padding
-                gap: '15px', 
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)', // Stronger shadow
-                border: '1px solid #e2e8f0'
-              }}>
-                <img 
-                    src={p.image_url || 'https://via.placeholder.com/110?text=Loom+AI'} 
-                    alt={p.name} 
-                    style={{ 
-                        width: '120px', // Slightly larger image
-                        height: '120px', 
-                        objectFit: 'cover', 
-                        borderRadius: '8px',
-                        backgroundColor: '#f8fafc',
-                        flexShrink: 0
-                    }} 
-                />
-
-                <div className="info" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>{p.name}</h4>
-                  
-                  <p style={{ margin: '0 0 14px 0', fontSize: '16px', fontWeight: '600', color: '#475569' }}>
-                    Size {p.size} · ₹{p.price}
-                  </p>
-
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                        onClick={() => addToCart(p.variant_id)}
-                        style={{ 
-                            flex: 1, 
-                            height: '44px', // Slightly taller
-                            fontSize: '13px', 
-                            fontWeight: '700', 
-                            borderRadius: '30px', 
-                            border: 'none',
-                            backgroundColor: '#0f172a',
-                            cursor: 'pointer',
-                            color: 'white'
-                        }}
-                    >
-                      Add to Cart
-                    </button>
-
-                    <button
-                      style={{
-                        flex: 1,
-                        height: '44px',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        borderRadius: '30px',
-                        background: "#2563eb",
-                        color: 'white',
-                        border: 'none',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => buyNow(p.variant_id)}
-                    >
-                      Buy Now
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <ProductCard 
+                key={p.variant_id} 
+                p={p} 
+                isAdded={addedItems.has(p.variant_id)}
+                onAddToCart={handleAddToCart}
+                onBuyNow={handleBuyNow} 
+              />
             ))}
           </div>
         </div>
         
-        {/* TOAST NOTIFICATION UI */}
         {toast && (
-          <div style={{
-            position: 'fixed',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: '#1e293b',
-            color: 'white',
-            padding: '12px 24px',
-            borderRadius: '50px',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-            zIndex: 2000,
-            fontSize: '14px',
-            fontWeight: '600',
-            animation: 'fadeIn 0.3s ease-in-out',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
+          <div style={{ position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#1e293b', color: 'white', padding: '10px 20px', borderRadius: '30px', boxShadow: '0 4px 15px rgba(0,0,0,0.3)', zIndex: 3000, fontSize: '14px', fontWeight: '600', animation: 'fadeIn 0.3s' }}>
             {toast}
           </div>
         )}
-
       </div>
-      
-      <style jsx>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translate(-50%, 20px); }
-          to { opacity: 1; transform: translate(-50%, 0); }
-        }
-      `}</style>
+      <style jsx>{` @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } `}</style>
     </>
   );
 }
