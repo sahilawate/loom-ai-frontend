@@ -37,7 +37,7 @@ export default function Home() {
             fontWeight: '500',
             margin: 0
           }}>
-            One AI brain across mobile, WhatsApp and store
+            One AI brain across Mobile, WhatsApp and Store
           </p>
         </div>
 
@@ -63,8 +63,8 @@ export default function Home() {
           maxWidth: '660px', 
           width: '90%' 
         }}>
-          <LaunchCard href="/checkout" title="Checkout" desc="Complete purchase" icon={<CartIcon />} />
-          <LaunchCard href="/agents" title="Agents Debug" desc="View AI timeline" icon={<PulseIcon />} />
+          <LaunchCard href="/checkout" title="Checkout" desc="Your Cart" icon={<CartIcon />} />
+          <LaunchCard href="/agents" title="Agents" desc="View AI timeline" icon={<PulseIcon />} />
         </div>
 
       </div>

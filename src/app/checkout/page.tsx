@@ -130,7 +130,7 @@ export default function CheckoutPage() {
             
             <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
                <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#0f172a', marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                 <span style={{ fontSize: '20px' }}>🛒</span> Your Cart ({items.length} items)
+                 <span style={{ fontSize: '20px' }}>🛒</span> Your Cart ({items.length} {items.length === 1 ? 'item' : 'items'})
                </h2>
 
                {items.length === 0 ? (
