@@ -16,10 +16,9 @@ export default function WhatsAppPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getSession("mobile").then((sid) => {
+    getSession("whatsapp").then((sid) => {
       setSessionId(sid);
       if (sid) {
-        // 🟢 Polling: Check every 1.5s until the order receipt is found
         const poll = setInterval(() => {
           fetchHistory(sid, poll);
         }, 1500);
@@ -35,7 +34,6 @@ export default function WhatsAppPage() {
       
       const history: any[] = await res.json();
       if (Array.isArray(history) && history.length > 0) {
-        // 🟢 Isolate the LATEST order confirm marker
         const lastOrderIdx = history.map(m => m.text || "").findLastIndex(t => t.includes("[WA_ORDER_"));
 
         if (lastOrderIdx !== -1) {
@@ -44,8 +42,9 @@ export default function WhatsAppPage() {
             text: m.text.replace(/\[WA_ORDER_?\d*\]/, "").trim()
           }));
           setMessages(waHistory);
-          // 🟢 Stop polling once the data exists
           if (pollInterval) clearInterval(pollInterval);
+        } else {
+          setMessages(history);
         }
       }
     } catch (e) { console.error("Polling Error", e); }
@@ -63,16 +62,59 @@ export default function WhatsAppPage() {
     setMessages(prev => [...prev, { role: "user", text: userMsg }]);
 
     try {
-      const res = await post("/chat/message", { sessionId, message: userMsg });
+      const res = await post("/chat/message", { sessionId, message: userMsg, channel: "whatsapp" });
       let aiText = res.reply;
+      
       if (res.products && res.products.length > 0) {
-        const list = res.products.map((p: any) => `• ${p.name} (₹${p.price})`).join("\n");
-        aiText += `\n\nFound for you:\n${list}\n\nClick 'Continue Shopping' for more info.`;
+        const list = res.products.map((p: any) => `• ${p.name.split("(")[0].trim()} (₹${p.price})`).join("\n");
+        aiText += `\n\n*Top Recommendations:*\n${list}\n\nType 'Buy' and the item name if you'd like me to add one to your cart!`;
       }
       setMessages(prev => [...prev, { role: "ai", text: aiText }]);
     } catch (e) { console.error(e); }
     setLoading(false);
   }
+
+  // 🟢 PARSER: Turns the marker into a clean, green, text-only clickable button!
+  const renderMessageContent = (text: string) => {
+    let processedText = text.replace(/🔗 \*Track your order live here:\*\nhttp:\/\/localhost:3000\/orders/g, "[TRACK_ORDER_BTN]");
+    processedText = processedText.replace(/http:\/\/localhost:3000\/orders/g, "[TRACK_ORDER_BTN]");
+    processedText = processedText.replace(/\[Track Order\]\(http:\/\/localhost:3000\/orders\)/g, "[TRACK_ORDER_BTN]");
+
+    if (processedText.includes("[TRACK_ORDER_BTN]")) {
+      const parts = processedText.split("[TRACK_ORDER_BTN]");
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ whiteSpace: 'pre-wrap' }}>{parts[0].trim()}</div>
+          
+          <button 
+            onClick={() => router.push('/orders')}
+            style={{
+              backgroundColor: 'transparent', // No background!
+              color: '#25d366', // WhatsApp Green text!
+              border: 'none',
+              padding: '6px 0px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontSize: '15px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: '6px',
+              width: 'fit-content',
+              marginTop: '4px',
+              marginBottom: '4px'
+            }}
+          >
+            📦 TRACK ORDER
+          </button>
+          
+          {parts[1] && <div style={{ whiteSpace: 'pre-wrap', marginTop: '4px' }}>{parts[1].trim()}</div>}
+        </div>
+      );
+    }
+    
+    return <div style={{ whiteSpace: 'pre-wrap' }}>{text}</div>;
+  };
 
   return (
     <div style={{ backgroundColor: '#d1d7db', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Segoe UI, Helvetica, sans-serif' }}>
@@ -92,13 +134,13 @@ export default function WhatsAppPage() {
           <div style={{ height: '60px', backgroundColor: '#f0f2f5', padding: '0 16px', display: 'flex', alignItems: 'center', gap: '15px', borderBottom: '1px solid #d1d7db' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#075e54', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>L</div>
             <div style={{ flex: 1 }}><div style={{ fontWeight: 'bold' }}>Loom AI</div><div style={{ fontSize: '12px', color: '#667781' }}>Business Account</div></div>
-            <button onClick={() => router.push("/")} style={{ backgroundColor: '#25d366', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>CONTINUE SHOPPING</button>
+            <button onClick={() => router.push("/mobile")} style={{ backgroundColor: '#25d366', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>CONTINUE SHOPPING</button>
           </div>
 
           <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {messages.length === 0 && (
               <div style={{ alignSelf: 'center', backgroundColor: '#fff3cd', padding: '12px 24px', borderRadius: '12px', fontSize: '14px', color: '#856404', marginTop: '20px', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                ⌛ Your order info will appear here...
+                ⌛ Your order receipt will appear here...
               </div>
             )}
             {messages.map((m, i) => (
@@ -106,9 +148,9 @@ export default function WhatsAppPage() {
                 alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
                 backgroundColor: m.role === 'user' ? '#dcf8c6' : 'white',
                 padding: '10px 14px', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                maxWidth: '80%', fontSize: '14.5px', lineHeight: '20px', whiteSpace: 'pre-wrap'
+                maxWidth: '80%', fontSize: '14.5px', lineHeight: '20px'
               }}>
-                {m.text}
+                {renderMessageContent(m.text)}
                 <div style={{ fontSize: '10px', color: '#888', textAlign: 'right', marginTop: '5px' }}>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
               </div>
             ))}

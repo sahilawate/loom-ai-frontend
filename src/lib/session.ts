@@ -1,5 +1,3 @@
-// src/lib/session.ts
-
 const SESSION_KEY = "loom_session_id";
 
 export async function getSession(appMode: string): Promise<string> {
